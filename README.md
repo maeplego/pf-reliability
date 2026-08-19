@@ -2,7 +2,7 @@
 
 P12 reliability-platform の製品リポジトリです。**学習用であり、本番インシデント管理や自動修復の置き換えではありません。** 訓練もアラート受信も **仮想メトリクス / 仮想インシデント** に閉じます。クラスタへの診断コマンド、自動 rollback、本番 EC の操作は実装していません。
 
-いまのスライスは **インシデント CRUD + Ack/Resolve + タイムライン + HMAC Webhook（dedup）+ Postgres** です。オンコール、ランブック編集、訓練セッション採点は未着手です。
+いまのスライスは **インシデント CRUD + Ack/Resolve + タイムライン + HMAC Webhook（dedup）+ Postgres + 訓練採点（bad-deploy）** です。オンコールとランブック CRUD は未着手です。
 
 ## 構成
 
@@ -29,6 +29,7 @@ docker compose up -d --build
 | URL | 用途 |
 | --- | --- |
 | http://localhost:3012 | インシデントボード |
+| http://localhost:3012/training | 仮想訓練の採点 |
 | http://localhost:8012/health | API liveness |
 | http://localhost:8012/ready | API readiness |
 | http://localhost:8012/v1/virtual-metrics | 仮想メトリクス |

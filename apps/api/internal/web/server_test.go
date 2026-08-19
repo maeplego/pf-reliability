@@ -334,6 +334,36 @@ func TestVirtualMetricsStaySynthetic(t *testing.T) {
 	}
 }
 
+func TestTrainingScoreScaleThenRollback(t *testing.T) {
+	ts := testServer(t)
+	defer ts.Close()
+	res := postJSON(t, http.MethodPost, ts.URL+"/v1/training/score", map[string]any{
+		"actions": []string{"scale", "rollback"},
+	}, "")
+	var body struct {
+		Passed      bool   `json:"passed"`
+		FinalState  string `json:"finalState"`
+		Score       int    `json:"score"`
+		VirtualOnly bool   `json:"virtualOnly"`
+	}
+	decode(t, res, &body)
+	if !body.Passed || body.FinalState != "recovered" || body.Score >= 100 || !body.VirtualOnly {
+		t.Fatalf("%+v", body)
+	}
+}
+
+func TestTrainingScoreRejectsKubectl(t *testing.T) {
+	ts := testServer(t)
+	defer ts.Close()
+	res := postJSON(t, http.MethodPost, ts.URL+"/v1/training/score", map[string]any{
+		"actions": []string{"kubectl_delete"},
+	}, "")
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("%d", res.StatusCode)
+	}
+}
+
 func TestUnknownIntegration(t *testing.T) {
 	ts := testServer(t)
 	defer ts.Close()

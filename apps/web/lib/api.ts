@@ -81,7 +81,23 @@ export async function fireDemoAlert() {
   return parse<Incident>(await fetch(`${apiBase}/v1/demo/alerts`, { method: "POST", headers: headers() }));
 }
 
-export async function virtualMetrics(after?: string): Promise<VirtualMetrics> {
-  const q = after ? `?after=${encodeURIComponent(after)}` : "";
-  return parse<VirtualMetrics>(await fetch(`${apiBase}/v1/virtual-metrics${q}`, { cache: "no-store" }));
+export async function scoreTraining(actions: string[]): Promise<TrainingScore> {
+  return parse<TrainingScore>(
+    await fetch(`${apiBase}/v1/training/score`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actions }),
+    }),
+  );
 }
+
+export type TrainingScore = {
+  scenario: string;
+  actions: string[];
+  finalState: string;
+  score: number;
+  passed: boolean;
+  penalties: string[];
+  notes: string[];
+  virtualOnly: boolean;
+};

@@ -56,6 +56,7 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("POST /v1/demo/alerts", s.auth.Handler(http.HandlerFunc(s.demoAlert)))
 
 	mux.HandleFunc("POST /v1/integrations/{key}/events", s.ingestEvent)
+	mux.HandleFunc("POST /v1/training/score", s.scoreTraining)
 	return s.withCORS(mux)
 }
 
@@ -154,6 +155,26 @@ func (s *Server) virtualMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, snap)
+}
+
+func (s *Server) scoreTraining(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Actions []string `json:"actions"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid", "invalid json")
+		return
+	}
+	actions := make([]scenario.Action, 0, len(body.Actions))
+	for _, raw := range body.Actions {
+		actions = append(actions, scenario.Action(strings.TrimSpace(raw)))
+	}
+	result, err := scenario.Score(actions)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) listIncidents(w http.ResponseWriter, r *http.Request) {

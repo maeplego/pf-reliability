@@ -27,6 +27,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           >
             本番システムは操作しません。メトリクスは仮想合成です。自動 rollback / kubectl はありません。
           </p>
+          <nav style={{ marginTop: "0.75rem" }}>
+            <a href="/">インシデント</a>
+            {" · "}
+            <a href="/training">訓練採点</a>
+          </nav>
         </header>
         {children}
       </body>

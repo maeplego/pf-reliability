@@ -142,6 +142,26 @@ paths:
       responses:
         "200":
           description: synthetic series only
+  /v1/training/score:
+    post:
+      description: Grade a virtual bad-deploy session. Never issues cluster commands.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actions:
+                  type: array
+                  items:
+                    type: string
+                    enum: [observe, rollback, scale, escalate, declare_resolved]
+      responses:
+        "200":
+          description: score 0–100, passed if recovered via rollback
+        "400":
+          description: unknown action
 components:
   securitySchemes:
     devUser:
