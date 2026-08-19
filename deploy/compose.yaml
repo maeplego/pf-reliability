@@ -1,0 +1,32 @@
+services:
+  reliability-api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment:
+      RELIABILITY_HTTP_PORT: "8012"
+      RELIABILITY_DEV_AUTH: ${RELIABILITY_DEV_AUTH:-true}
+      RELIABILITY_CORS_ORIGIN: ${RELIABILITY_CORS_ORIGIN:-http://localhost:3012}
+      RELIABILITY_WEBHOOK_SECRET: ${RELIABILITY_WEBHOOK_SECRET:-dev-webhook-secret-not-for-prod}
+      RELIABILITY_INTEGRATION_KEY: ${RELIABILITY_INTEGRATION_KEY:-dev-inventory}
+    ports:
+      - "8012:8012"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8012/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  reliability-web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_RELIABILITY_API_URL: ${NEXT_PUBLIC_RELIABILITY_API_URL:-http://localhost:8012}
+    environment:
+      NEXT_PUBLIC_RELIABILITY_API_URL: ${NEXT_PUBLIC_RELIABILITY_API_URL:-http://localhost:8012}
+    ports:
+      - "3012:3012"
+    depends_on:
+      reliability-api:
+        condition: service_healthy

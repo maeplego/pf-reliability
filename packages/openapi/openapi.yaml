@@ -1,0 +1,150 @@
+openapi: 3.0.3
+info:
+  title: pf-reliability API
+  version: "0.1.0"
+  description: |
+    P12 first slice. Incident lifecycle and HMAC webhook ingest.
+    Metrics are virtual. This API never issues cluster commands.
+servers:
+  - url: http://localhost:8012
+paths:
+  /health:
+    get:
+      responses:
+        "200":
+          description: liveness
+  /ready:
+    get:
+      responses:
+        "200":
+          description: readiness
+  /v1/incidents:
+    get:
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [triggered, acknowledged, resolved]
+      responses:
+        "200":
+          description: list
+    post:
+      security:
+        - devUser: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceId, severity, summary]
+              properties:
+                serviceId: { type: string }
+                severity: { type: string, enum: [SEV1, SEV2, SEV3, SEV4] }
+                summary: { type: string }
+                dedupKey: { type: string }
+      responses:
+        "201":
+          description: created
+        "200":
+          description: aggregated onto an open incident
+  /v1/incidents/{id}:
+    get:
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: incident plus timeline
+  /v1/incidents/{id}/ack:
+    post:
+      security:
+        - devUser: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: acknowledged
+  /v1/incidents/{id}/resolve:
+    post:
+      security:
+        - devUser: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: resolved
+  /v1/incidents/{id}/comments:
+    post:
+      security:
+        - devUser: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+      responses:
+        "201":
+          description: comment
+  /v1/integrations/{key}/events:
+    post:
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema: { type: string }
+      description: HMAC-SHA256 of the raw body in X-Signature-256. Same dedup_key aggregates while open.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dedup_key, severity, service, summary]
+              properties:
+                dedup_key: { type: string }
+                severity: { type: string }
+                service: { type: string }
+                summary: { type: string }
+                event_id: { type: string }
+      responses:
+        "201":
+          description: new incident
+        "200":
+          description: aggregated or replayed
+        "401":
+          description: missing or invalid signature
+  /v1/virtual-metrics:
+    get:
+      parameters:
+        - in: query
+          name: after
+          schema:
+            type: string
+            enum: [observe, scale, rollback, escalate]
+      responses:
+        "200":
+          description: synthetic series only
+components:
+  securitySchemes:
+    devUser:
+      type: apiKey
+      in: header
+      name: X-Dev-User-Sub
