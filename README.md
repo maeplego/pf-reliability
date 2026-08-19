@@ -69,5 +69,6 @@ DB なし。状態機械は `apps/api/internal/incident`、HMAC は `internal/we
 - オンコール週次ローテーション、エスカレーション、Slack 通知なし
 - ランブック CRUD と訓練セッション API なし（仮想メトリクスのプレビューのみ）
 - 公開デモで他人をページングする機能はない
+- overlay F は `pf-cloud-k8s`（メモリストアのまま。platform DB `reliability` は未接続）
 
 設計: `project/portfolio-plan/reliability-platform/DESIGN.md` と `docs/`。

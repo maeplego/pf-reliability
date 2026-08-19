@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app: reliability-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reliability-api
+  template:
+    metadata:
+      labels:
+        app: reliability-api
+    spec:
+      containers:
+        - name: api
+          image: pf-reliability-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8012
+              name: http
+          env:
+            - name: RELIABILITY_HTTP_PORT
+              value: "8012"
+            - name: RELIABILITY_DEV_AUTH
+              value: "true"
+            - name: RELIABILITY_CORS_ORIGIN
+              value: http://reliability.localhost
+            - name: RELIABILITY_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: p12-secrets
+                  key: RELIABILITY_WEBHOOK_SECRET
+            - name: RELIABILITY_INTEGRATION_KEY
+              value: dev-inventory
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.platform.svc.cluster.local:4318
+            - name: OTEL_SERVICE_NAME
+              value: reliability-api
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8012
+            initialDelaySeconds: 8
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8012
+            initialDelaySeconds: 15
+            periodSeconds: 10
