@@ -60,6 +60,11 @@ func (s *Service) CreateMonitored(ctx context.Context, code, name, description s
 		Description: strings.TrimSpace(description), CreatedAt: now,
 	}
 	if err := s.repo.CreateService(ctx, ms); err != nil {
+		if err == ErrConflict {
+			if existing, gerr := s.repo.GetServiceByCode(ctx, code); gerr == nil {
+				return existing, nil
+			}
+		}
 		return MonitoredService{}, err
 	}
 	return ms, nil

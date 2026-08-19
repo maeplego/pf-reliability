@@ -35,6 +35,11 @@ spec:
                   key: RELIABILITY_WEBHOOK_SECRET
             - name: RELIABILITY_INTEGRATION_KEY
               value: dev-inventory
+            - name: RELIABILITY_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: p12-secrets
+                  key: RELIABILITY_DATABASE_URL
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector.platform.svc.cluster.local:4318
             - name: OTEL_SERVICE_NAME

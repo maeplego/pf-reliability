@@ -1,4 +1,20 @@
 services:
+  reliability-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: reliability
+      POSTGRES_PASSWORD: reliability
+      POSTGRES_DB: reliability
+    ports:
+      - "5412:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reliability -d reliability"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - reliability-pg:/var/lib/postgresql/data
+
   reliability-api:
     build:
       context: ..
@@ -9,8 +25,12 @@ services:
       RELIABILITY_CORS_ORIGIN: ${RELIABILITY_CORS_ORIGIN:-http://localhost:3012}
       RELIABILITY_WEBHOOK_SECRET: ${RELIABILITY_WEBHOOK_SECRET:-dev-webhook-secret-not-for-prod}
       RELIABILITY_INTEGRATION_KEY: ${RELIABILITY_INTEGRATION_KEY:-dev-inventory}
+      RELIABILITY_DATABASE_URL: ${RELIABILITY_DATABASE_URL:-postgres://reliability:reliability@reliability-db:5432/reliability?sslmode=disable}
     ports:
       - "8012:8012"
+    depends_on:
+      reliability-db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8012/health"]
       interval: 5s
@@ -30,3 +50,6 @@ services:
     depends_on:
       reliability-api:
         condition: service_healthy
+
+volumes:
+  reliability-pg:

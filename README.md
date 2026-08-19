@@ -2,7 +2,7 @@
 
 P12 reliability-platform の製品リポジトリです。**学習用であり、本番インシデント管理や自動修復の置き換えではありません。** 訓練もアラート受信も **仮想メトリクス / 仮想インシデント** に閉じます。クラスタへの診断コマンド、自動 rollback、本番 EC の操作は実装していません。
 
-いまのスライスは **インシデント CRUD + Ack/Resolve + タイムライン + HMAC Webhook（dedup）** です。オンコール、ランブック編集、訓練セッション採点は未着手です。
+いまのスライスは **インシデント CRUD + Ack/Resolve + タイムライン + HMAC Webhook（dedup）+ Postgres** です。オンコール、ランブック編集、訓練セッション採点は未着手です。
 
 ## 構成
 
@@ -12,7 +12,7 @@ P12 reliability-platform の製品リポジトリです。**学習用であり�
 | `apps/web` | Next.js。インシデントボードと仮想メトリクス表示 |
 | `packages/scenario` | bad-deploy シナリオの純関数。破壊的 I/O なし |
 | `packages/openapi` | OpenAPI 3 |
-| `deploy/` | 単体 Compose（API + Web。メモリストア） |
+| `deploy/` | 単体 Compose（API + Web + Postgres） |
 
 認証は `X-Dev-User-Sub`（P01 OIDC は未配線）。Webhook は HMAC-SHA256（`X-Signature-256: sha256=<hex>`）。統合シークレットは API 応答でマスクします。
 
@@ -65,10 +65,10 @@ DB なし。状態機械は `apps/api/internal/incident`、HMAC は `internal/we
 
 ## 既知の制限
 
-- メモリストア。Compose 再起動で消える。Postgres は未接続
+- Postgres（Compose `reliability-db` / overlay F の platform DB `reliability`）。`RELIABILITY_DATABASE_URL` 未設定時のみメモリ
 - オンコール週次ローテーション、エスカレーション、Slack 通知なし
 - ランブック CRUD と訓練セッション API なし（仮想メトリクスのプレビューのみ）
 - 公開デモで他人をページングする機能はない
-- overlay F は `pf-cloud-k8s`（メモリストアのまま。platform DB `reliability` は未接続）
+- overlay F は `pf-cloud-k8s`（platform DB `reliability`）
 
 設計: `project/portfolio-plan/reliability-platform/DESIGN.md` と `docs/`。

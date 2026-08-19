@@ -12,6 +12,7 @@ type Config struct {
 	CORSOrigin     string
 	WebhookSecret  string
 	IntegrationKey string
+	DatabaseURL    string
 }
 
 func FromEnv() (Config, error) {
@@ -26,6 +27,7 @@ func FromEnv() (Config, error) {
 		CORSOrigin:     strings.TrimSpace(os.Getenv("RELIABILITY_CORS_ORIGIN")),
 		WebhookSecret:  strings.TrimSpace(os.Getenv("RELIABILITY_WEBHOOK_SECRET")),
 		IntegrationKey: strings.TrimSpace(os.Getenv("RELIABILITY_INTEGRATION_KEY")),
+		DatabaseURL:    strings.TrimSpace(os.Getenv("RELIABILITY_DATABASE_URL")),
 	}
 	if cfg.CORSOrigin == "" {
 		cfg.CORSOrigin = "http://localhost:3012"

@@ -15,6 +15,7 @@ import (
 	"github.com/portfolio/pf-reliability/apps/api/internal/incident"
 	"github.com/portfolio/pf-reliability/apps/api/internal/seed"
 	"github.com/portfolio/pf-reliability/apps/api/internal/store/memory"
+	"github.com/portfolio/pf-reliability/apps/api/internal/store/postgres"
 	"github.com/portfolio/pf-reliability/apps/api/internal/web"
 )
 
@@ -25,14 +26,34 @@ func main() {
 	}
 	ctx := context.Background()
 	clk := clock.System{}
-	st := memory.New()
-	svc := incident.NewService(st, clk.Now)
+
+	var (
+		repo   incident.Repository
+		ready  func() error
+		closer func()
+		label  = "memory"
+	)
+	if cfg.DatabaseURL != "" {
+		pg, err := postgres.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			log.Fatal(err)
+		}
+		closer = pg.Close
+		repo = pg
+		ready = func() error { return pg.Ping(context.Background()) }
+		label = "postgres"
+	} else {
+		st := memory.New()
+		repo = st
+		ready = func() error { return st.Ping(context.Background()) }
+	}
+	svc := incident.NewService(repo, clk.Now)
 	if err := seed.Ensure(ctx, svc, cfg.IntegrationKey, cfg.WebhookSecret); err != nil {
 		log.Fatal(err)
 	}
 
 	mw := auth.New(cfg.DevAuth)
-	handler := web.New(svc, cfg.CORSOrigin, mw, func() error { return st.Ping(context.Background()) }, cfg.IntegrationKey).Routes()
+	handler := web.New(svc, cfg.CORSOrigin, mw, ready, cfg.IntegrationKey).Routes()
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           handler,
@@ -40,7 +61,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("reliability api listening on %s (devAuth=%v integration=%s store=memory)", cfg.HTTPAddr, cfg.DevAuth, cfg.IntegrationKey)
+		log.Printf("reliability api listening on %s (devAuth=%v integration=%s store=%s)", cfg.HTTPAddr, cfg.DevAuth, cfg.IntegrationKey, label)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
@@ -50,6 +71,9 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 	log.Println("shutting down")
+	if closer != nil {
+		closer()
+	}
 	shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutCtx)
