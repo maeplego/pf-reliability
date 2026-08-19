@@ -70,4 +70,4 @@ DB なし。状態機械は `apps/api/internal/incident`、HMAC は `internal/we
 - ランブック CRUD と訓練セッション API なし（仮想メトリクスのプレビューのみ）
 - 公開デモで他人をページングする機能はない
 
-設計: `project/portfolio-plan/reliability-platform/DESIGN.md`
+設計: `project/portfolio-plan/reliability-platform/DESIGN.md` と `docs/`。
