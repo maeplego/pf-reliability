@@ -3,16 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { fireDemoAlert, listIncidents, listServices, virtualMetrics, type Incident, type Service, type VirtualMetrics } from "@/lib/api";
 
-function sevColor(sev: string) {
+function sevClass(sev: string) {
   switch (sev) {
     case "SEV1":
-      return "#b91c1c";
+      return "sev-sev1";
     case "SEV2":
-      return "#c2410c";
+      return "sev-sev2";
     case "SEV3":
-      return "#a16207";
+      return "sev-sev3";
     default:
-      return "#4b5563";
+      return "sev-default";
   }
 }
 
@@ -40,55 +40,61 @@ export default function HomePage() {
   const svcName = (id: string) => services.find((s) => s.id === id)?.name ?? id;
 
   return (
-    <main>
-      <h1>インシデントボード</h1>
-      <p style={{ color: "#555" }}>未解決が上。Webhook は HMAC + 同一 dedup_key で 1 件に集約します。</p>
-      {err ? <p>{err}</p> : null}
-      <p>
-        <button type="button" onClick={() => fireDemoAlert().then(reload).catch((e) => setErr(String(e)))}>
+    <>
+      <section className="hero">
+        <h1 className="page-title">インシデントボード</h1>
+        <p className="page-lead">未解決が上。Webhook は HMAC + 同一 dedup_key で 1 件に集約します。</p>
+      </section>
+      {err ? <p className="error">{err}</p> : null}
+      <div className="row">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => fireDemoAlert().then(reload).catch((e) => setErr(String(e)))}
+        >
           擬似アラート（inventory 5xx）
-        </button>{" "}
-        <button type="button" onClick={reload}>
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={reload}>
           再読込
         </button>
-      </p>
-      <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "0.75rem" }}>
+      </div>
+      <div className="card-grid">
         {incidents.map((inc) => (
-          <li key={inc.id} style={{ border: "1px solid #ddd", padding: "0.85rem 1rem", borderRadius: 8 }}>
-            <a href={`/incidents/${inc.id}`} style={{ color: "inherit", textDecoration: "none" }}>
-              <strong style={{ color: sevColor(inc.severity) }}>{inc.severity}</strong>{" "}
-              <span>{inc.status}</span>
+          <article key={inc.id} className="card">
+            <a href={`/incidents/${inc.id}`} className="incident-link">
+              <strong className={sevClass(inc.severity)}>{inc.severity}</strong>{" "}
+              <span className="badge">{inc.status}</span>
               <div>{inc.summary}</div>
-              <div style={{ color: "#666", fontSize: "0.9rem" }}>
+              <div className="muted">
                 {svcName(inc.serviceId)} · {inc.dedupKey} · alerts {inc.alertCount}
               </div>
             </a>
-          </li>
+          </article>
         ))}
-      </ul>
-      {incidents.length === 0 ? <p>インシデントはありません。</p> : null}
+      </div>
+      {incidents.length === 0 ? <p className="muted">インシデントはありません。</p> : null}
 
-      <h2>サービス</h2>
-      <ul>
+      <h2 className="section-title">サービス</h2>
+      <div className="card-grid">
         {services.map((s) => (
-          <li key={s.id}>
-            {s.name} ({s.code})
+          <article key={s.id} className="card">
+            <strong>{s.name}</strong> <span className="muted">({s.code})</span>
             {s.integrations.map((k) => (
-              <span key={k.publicKey} style={{ marginLeft: "0.5rem", color: "#666" }}>
+              <div key={k.publicKey} className="muted">
                 key {k.publicKey} secret {k.secretMasked}
-              </span>
+              </div>
             ))}
-          </li>
+          </article>
         ))}
-      </ul>
+      </div>
 
-      <h2>仮想メトリクス（bad-deploy）</h2>
+      <h2 className="section-title">仮想メトリクス（bad-deploy）</h2>
       {metrics ? (
-        <div>
+        <section className="card">
           <p>
             state={metrics.state} · virtualOnly={String(metrics.virtualOnly)}
           </p>
-          <p style={{ color: "#555" }}>{metrics.note}</p>
+          <p className="muted">{metrics.note}</p>
           <ul>
             {metrics.points.map((p) => (
               <li key={p.name}>
@@ -96,16 +102,16 @@ export default function HomePage() {
               </li>
             ))}
           </ul>
-          <p>
-            <button type="button" onClick={() => virtualMetrics("scale").then(setMetrics)}>
+          <div className="row">
+            <button type="button" className="btn" onClick={() => virtualMetrics("scale").then(setMetrics)}>
               仮想 scale
-            </button>{" "}
-            <button type="button" onClick={() => virtualMetrics("rollback").then(setMetrics)}>
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => virtualMetrics("rollback").then(setMetrics)}>
               仮想 rollback
             </button>
-          </p>
-        </div>
+          </div>
+        </section>
       ) : null}
-    </main>
+    </>
   );
 }
