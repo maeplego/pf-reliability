@@ -34,6 +34,6 @@ docker compose up -d --build
 go test ./...
 ```
 
-訓練では scale だけでは直らず、rollback で回復する採点になっています。オンコールローテーションや Slack 通知はありません。
+訓練では bad-deploy は rollback、noisy-neighbor は scale、dependency-timeout は escalate が正解です。ランブック CRUD、3 シナリオ、訓練履歴、架空オンコール一覧があります。Slack 通知はありません。
 
 設計の詳細は [portfolio-plan](https://github.com/maeplego/portfolio-plan) の `portfolio-plan/reliability-platform/docs/` です。

@@ -116,61 +116,7 @@ type ScoreResult struct {
 
 // Score grades a training session. Scale-out is a known wrong move for bad-deploy
 // (penalty) but rollback can still recover. The product never talks to a cluster.
+// Score grades a bad-deploy training session.
 func Score(actions []Action) (ScoreResult, error) {
-	state := StateDegraded
-	score := 100
-	var penalties []string
-	var notes []string
-	usedRollback := false
-	usedScale := false
-	copied := make([]Action, 0, len(actions))
-	for _, action := range actions {
-		copied = append(copied, action)
-		next, err := Apply(state, action)
-		if err != nil {
-			return ScoreResult{}, err
-		}
-		switch action {
-		case ActionScale:
-			if state != StateRecovered {
-				usedScale = true
-				score -= 25
-				penalties = append(penalties, "scale does not fix a bad inventory deploy")
-			}
-		case ActionRollback:
-			usedRollback = true
-			notes = append(notes, "rollback recovered the virtual error ratio")
-		case ActionObserve:
-			notes = append(notes, "observe only; virtual metrics")
-		case ActionEscalate:
-			notes = append(notes, "escalate is logged; this demo does not page a human")
-		}
-		state = next
-	}
-	if !usedRollback {
-		score -= 40
-		penalties = append(penalties, "rollback was not used")
-	}
-	if state != StateRecovered {
-		score -= 40
-		penalties = append(penalties, "session ended without recovery")
-	}
-	if score < 0 {
-		score = 0
-	}
-	if score > 100 {
-		score = 100
-	}
-	passed := state == StateRecovered && usedRollback
-	_ = usedScale
-	return ScoreResult{
-		Scenario:    BadDeploy,
-		Actions:     copied,
-		FinalState:  state,
-		Score:       score,
-		Passed:      passed,
-		Penalties:   penalties,
-		Notes:       notes,
-		VirtualOnly: true,
-	}, nil
+	return ScoreNamed(BadDeploy, actions)
 }

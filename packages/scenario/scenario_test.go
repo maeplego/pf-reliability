@@ -97,3 +97,21 @@ func TestScoreRejectsClusterFantasy(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestNoisyNeighborScalePasses(t *testing.T) {
+	got, err := scenario.ScoreNamed(scenario.NoisyNeighbor, []scenario.Action{scenario.ActionScale})
+	if err != nil || !got.Passed || got.FinalState != scenario.StateRecovered {
+		t.Fatalf("%+v %v", got, err)
+	}
+}
+
+func TestDependencyTimeoutNeedsEscalate(t *testing.T) {
+	got, err := scenario.ScoreNamed(scenario.DependencyTimeout, []scenario.Action{scenario.ActionScale})
+	if err != nil || got.Passed {
+		t.Fatalf("%+v %v", got, err)
+	}
+	ok, err := scenario.ScoreNamed(scenario.DependencyTimeout, []scenario.Action{scenario.ActionEscalate})
+	if err != nil || !ok.Passed {
+		t.Fatalf("%+v %v", ok, err)
+	}
+}

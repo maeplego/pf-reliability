@@ -10,6 +10,7 @@ import (
 
 	"github.com/portfolio/pf-reliability/apps/api/internal/auth"
 	"github.com/portfolio/pf-reliability/apps/api/internal/incident"
+	"github.com/portfolio/pf-reliability/apps/api/internal/runbook"
 	"github.com/portfolio/pf-reliability/apps/api/internal/seed"
 	"github.com/portfolio/pf-reliability/apps/api/internal/webhook"
 	"github.com/portfolio/pf-reliability/packages/scenario"
@@ -17,6 +18,8 @@ import (
 
 type Server struct {
 	incidents *incident.Service
+	books     *runbook.Store
+	history   *runbook.History
 	cors      string
 	auth      *auth.Middleware
 	ready     func() error
@@ -27,7 +30,17 @@ func New(incidents *incident.Service, cors string, mw *auth.Middleware, ready fu
 	if ready == nil {
 		ready = func() error { return nil }
 	}
-	return &Server{incidents: incidents, cors: cors, auth: mw, ready: ready, integKey: integKey}
+	books := runbook.NewStore()
+	books.Seed()
+	return &Server{
+		incidents: incidents,
+		books:     books,
+		history:   runbook.NewHistory(),
+		cors:      cors,
+		auth:      mw,
+		ready:     ready,
+		integKey:  integKey,
+	}
 }
 
 func (s *Server) Routes() http.Handler {
@@ -56,7 +69,15 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("POST /v1/demo/alerts", s.auth.Handler(http.HandlerFunc(s.demoAlert)))
 
 	mux.HandleFunc("POST /v1/integrations/{key}/events", s.ingestEvent)
+	mux.HandleFunc("GET /v1/training/scenarios", s.listScenarios)
 	mux.HandleFunc("POST /v1/training/score", s.scoreTraining)
+	mux.HandleFunc("GET /v1/training/history", s.trainingHistory)
+	mux.HandleFunc("GET /v1/runbooks", s.listRunbooks)
+	mux.Handle("POST /v1/runbooks", s.auth.Handler(http.HandlerFunc(s.upsertRunbook)))
+	mux.HandleFunc("GET /v1/runbooks/{id}", s.getRunbook)
+	mux.Handle("PUT /v1/runbooks/{id}", s.auth.Handler(http.HandlerFunc(s.upsertRunbook)))
+	mux.Handle("DELETE /v1/runbooks/{id}", s.auth.Handler(http.HandlerFunc(s.deleteRunbook)))
+	mux.HandleFunc("GET /v1/oncall", s.oncall)
 	return s.withCORS(mux)
 }
 
@@ -65,7 +86,7 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 		if s.cors != "" {
 			w.Header().Set("Access-Control-Allow-Origin", s.cors)
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Dev-User-Sub, X-Signature-256")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
@@ -144,12 +165,13 @@ func (s *Server) serviceJSON(r *http.Request, ms incident.MonitoredService) map[
 }
 
 func (s *Server) virtualMetrics(w http.ResponseWriter, r *http.Request) {
+	name := scenario.NormalizeName(r.URL.Query().Get("scenario"))
 	action := strings.TrimSpace(r.URL.Query().Get("after"))
 	if action == "" {
-		writeJSON(w, http.StatusOK, scenario.Metrics(scenario.StateDegraded))
+		writeJSON(w, http.StatusOK, scenario.MetricsNamed(name, scenario.StateDegraded))
 		return
 	}
-	snap, err := scenario.After(scenario.Action(action))
+	snap, err := scenario.AfterNamed(name, scenario.Action(action))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid", err.Error())
 		return
@@ -157,9 +179,14 @@ func (s *Server) virtualMetrics(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, snap)
 }
 
+func (s *Server) listScenarios(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"scenarios": scenario.Names(), "virtualOnly": true})
+}
+
 func (s *Server) scoreTraining(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Actions []string `json:"actions"`
+		Scenario string   `json:"scenario"`
+		Actions  []string `json:"actions"`
 	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid", "invalid json")
@@ -169,12 +196,69 @@ func (s *Server) scoreTraining(w http.ResponseWriter, r *http.Request) {
 	for _, raw := range body.Actions {
 		actions = append(actions, scenario.Action(strings.TrimSpace(raw)))
 	}
-	result, err := scenario.Score(actions)
+	result, err := scenario.ScoreNamed(body.Scenario, actions)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid", err.Error())
 		return
 	}
+	s.history.Add(runbook.HistoryEntry{
+		At: time.Now().UTC(), Scenario: result.Scenario, Score: result.Score, Passed: result.Passed,
+	})
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) trainingHistory(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"history": s.history.List(), "virtualOnly": true})
+}
+
+func (s *Server) listRunbooks(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"runbooks": s.books.List()})
+}
+
+func (s *Server) getRunbook(w http.ResponseWriter, r *http.Request) {
+	b, err := s.books.Get(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, b)
+}
+
+func (s *Server) upsertRunbook(w http.ResponseWriter, r *http.Request) {
+	var body runbook.Book
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid", "invalid json")
+		return
+	}
+	if id := strings.TrimSpace(r.PathValue("id")); id != "" {
+		body.ID = id
+	}
+	if err := s.books.Upsert(body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, body)
+}
+
+func (s *Server) deleteRunbook(w http.ResponseWriter, r *http.Request) {
+	if err := s.books.Delete(r.PathValue("id")); err != nil {
+		writeError(w, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) oncall(w http.ResponseWriter, r *http.Request) {
+	at := time.Now().UTC()
+	if raw := strings.TrimSpace(r.URL.Query().Get("at")); raw != "" {
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid", "at must be RFC3339")
+			return
+		}
+		at = parsed
+	}
+	writeJSON(w, http.StatusOK, runbook.OnCallAt(at))
 }
 
 func (s *Server) listIncidents(w http.ResponseWriter, r *http.Request) {

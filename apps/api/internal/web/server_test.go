@@ -399,3 +399,45 @@ func TestResolvedDedupOpensNewIncident(t *testing.T) {
 		t.Fatal("resolved incident should not absorb a new alert")
 	}
 }
+
+func TestRunbooksOnCallAndNamedScenario(t *testing.T) {
+	ts := testServer(t)
+	defer ts.Close()
+	res, err := http.Get(ts.URL + "/v1/runbooks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var books struct {
+		Runbooks []struct {
+			ID string `json:"id"`
+		} `json:"runbooks"`
+	}
+	decode(t, res, &books)
+	if len(books.Runbooks) == 0 {
+		t.Fatal("expected seeded runbook")
+	}
+	oc, err := http.Get(ts.URL + "/v1/oncall?at=2026-08-19T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var on struct {
+		Primary     string `json:"primary"`
+		VirtualOnly bool   `json:"virtualOnly"`
+	}
+	decode(t, oc, &on)
+	if !on.VirtualOnly || on.Primary == "" {
+		t.Fatalf("%+v", on)
+	}
+	scored := postJSON(t, http.MethodPost, ts.URL+"/v1/training/score", map[string]any{
+		"scenario": "noisy-neighbor",
+		"actions":  []string{"scale"},
+	}, "")
+	var body struct {
+		Passed   bool   `json:"passed"`
+		Scenario string `json:"scenario"`
+	}
+	decode(t, scored, &body)
+	if !body.Passed || body.Scenario != "noisy-neighbor" {
+		t.Fatalf("%+v", body)
+	}
+}

@@ -81,14 +81,25 @@ export async function fireDemoAlert() {
   return parse<Incident>(await fetch(`${apiBase}/v1/demo/alerts`, { method: "POST", headers: headers() }));
 }
 
-export async function scoreTraining(actions: string[]): Promise<TrainingScore> {
+export async function scoreTraining(actions: string[], scenario = "bad-deploy"): Promise<TrainingScore> {
   return parse<TrainingScore>(
     await fetch(`${apiBase}/v1/training/score`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actions }),
+      body: JSON.stringify({ actions, scenario }),
     }),
   );
+}
+
+export async function listRunbooks(): Promise<{ id: string; title: string; body: string; serviceCode: string }[]> {
+  const body = await parse<{ runbooks: { id: string; title: string; body: string; serviceCode: string }[] }>(
+    await fetch(`${apiBase}/v1/runbooks`, { cache: "no-store" }),
+  );
+  return body.runbooks;
+}
+
+export async function getOnCall(): Promise<{ primary: string; secondary: string; note: string; virtualOnly: boolean }> {
+  return parse(await fetch(`${apiBase}/v1/oncall`, { cache: "no-store" }));
 }
 
 export type TrainingScore = {
