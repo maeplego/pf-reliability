@@ -77,6 +77,22 @@ func postJSON(t *testing.T, method, url string, body any, sub string) *http.Resp
 	return res
 }
 
+func getAuthed(t *testing.T, url, sub string) *http.Response {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sub != "" {
+		req.Header.Set("X-Dev-User-Sub", sub)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
+}
+
 func TestHealthReady(t *testing.T) {
 	ts := testServer(t)
 	defer ts.Close()
@@ -167,10 +183,7 @@ func TestWebhookDedupSameIncident(t *testing.T) {
 		t.Fatalf("dedup failed %+v vs %+v", a, b)
 	}
 
-	list, err := http.Get(ts.URL + "/v1/incidents")
-	if err != nil {
-		t.Fatal(err)
-	}
+	list := getAuthed(t, ts.URL+"/v1/incidents", "sre-demo")
 	var wrap struct {
 		Incidents []struct {
 			ID string `json:"id"`
@@ -216,10 +229,7 @@ func TestWebhookEventIDIdempotent(t *testing.T) {
 func TestAckResolveAndTimeline(t *testing.T) {
 	ts := testServer(t)
 	defer ts.Close()
-	svcs, err := http.Get(ts.URL + "/v1/services")
-	if err != nil {
-		t.Fatal(err)
-	}
+	svcs := getAuthed(t, ts.URL+"/v1/services", "sre-demo")
 	var catalog struct {
 		Services []struct {
 			ID   string `json:"id"`
@@ -273,10 +283,7 @@ func TestAckResolveAndTimeline(t *testing.T) {
 	}
 	_ = resv.Body.Close()
 
-	got, err := http.Get(ts.URL + "/v1/incidents/" + inc.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	got := getAuthed(t, ts.URL+"/v1/incidents/"+inc.ID, "sre-demo")
 	var detail struct {
 		Status   string `json:"status"`
 		Timeline []struct {
@@ -311,6 +318,30 @@ func TestMutationsRequireAuth(t *testing.T) {
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("%d", res.StatusCode)
+	}
+}
+
+func TestListGetsRequireAuth(t *testing.T) {
+	ts := testServer(t)
+	defer ts.Close()
+	for _, path := range []string{
+		"/v1/services",
+		"/v1/incidents",
+		"/v1/runbooks",
+		"/v1/training/history",
+		"/v1/training/scenarios",
+		"/v1/oncall",
+	} {
+		res := getAuthed(t, ts.URL+path, "")
+		if res.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("%s want 401, got %d", path, res.StatusCode)
+		}
+		_ = res.Body.Close()
+	}
+	ok := getAuthed(t, ts.URL+"/v1/incidents", "sre-demo")
+	defer ok.Body.Close()
+	if ok.StatusCode != http.StatusOK {
+		t.Fatalf("authed list %d", ok.StatusCode)
 	}
 }
 
@@ -403,10 +434,7 @@ func TestResolvedDedupOpensNewIncident(t *testing.T) {
 func TestRunbooksOnCallAndNamedScenario(t *testing.T) {
 	ts := testServer(t)
 	defer ts.Close()
-	res, err := http.Get(ts.URL + "/v1/runbooks")
-	if err != nil {
-		t.Fatal(err)
-	}
+	res := getAuthed(t, ts.URL+"/v1/runbooks", "sre-demo")
 	var books struct {
 		Runbooks []struct {
 			ID string `json:"id"`
@@ -416,10 +444,7 @@ func TestRunbooksOnCallAndNamedScenario(t *testing.T) {
 	if len(books.Runbooks) == 0 {
 		t.Fatal("expected seeded runbook")
 	}
-	oc, err := http.Get(ts.URL + "/v1/oncall?at=2026-08-19T00:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
+	oc := getAuthed(t, ts.URL+"/v1/oncall?at=2026-08-19T00:00:00Z", "sre-demo")
 	var on struct {
 		Primary     string `json:"primary"`
 		VirtualOnly bool   `json:"virtualOnly"`

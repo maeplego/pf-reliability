@@ -46,17 +46,21 @@ function headers(): HeadersInit {
 }
 
 export async function listServices(): Promise<Service[]> {
-  const body = await parse<{ services: Service[] }>(await fetch(`${apiBase}/v1/services`, { cache: "no-store" }));
+  const body = await parse<{ services: Service[] }>(
+    await fetch(`${apiBase}/v1/services`, { cache: "no-store", headers: headers() }),
+  );
   return body.services;
 }
 
 export async function listIncidents(): Promise<Incident[]> {
-  const body = await parse<{ incidents: Incident[] }>(await fetch(`${apiBase}/v1/incidents`, { cache: "no-store" }));
+  const body = await parse<{ incidents: Incident[] }>(
+    await fetch(`${apiBase}/v1/incidents`, { cache: "no-store", headers: headers() }),
+  );
   return body.incidents;
 }
 
 export async function getIncident(id: string): Promise<Incident> {
-  return parse<Incident>(await fetch(`${apiBase}/v1/incidents/${id}`, { cache: "no-store" }));
+  return parse<Incident>(await fetch(`${apiBase}/v1/incidents/${id}`, { cache: "no-store", headers: headers() }));
 }
 
 export async function ackIncident(id: string) {
@@ -98,13 +102,13 @@ export async function scoreTraining(actions: string[], scenario = "bad-deploy"):
 
 export async function listRunbooks(): Promise<{ id: string; title: string; body: string; serviceCode: string }[]> {
   const body = await parse<{ runbooks: { id: string; title: string; body: string; serviceCode: string }[] }>(
-    await fetch(`${apiBase}/v1/runbooks`, { cache: "no-store" }),
+    await fetch(`${apiBase}/v1/runbooks`, { cache: "no-store", headers: headers() }),
   );
   return body.runbooks;
 }
 
 export async function getOnCall(): Promise<{ primary: string; secondary: string; note: string; virtualOnly: boolean }> {
-  return parse(await fetch(`${apiBase}/v1/oncall`, { cache: "no-store" }));
+  return parse(await fetch(`${apiBase}/v1/oncall`, { cache: "no-store", headers: headers() }));
 }
 
 export type TrainingScore = {

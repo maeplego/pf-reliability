@@ -56,12 +56,12 @@ func (s *Server) Routes() http.Handler {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 	})
 
-	mux.HandleFunc("GET /v1/services", s.listServices)
-	mux.HandleFunc("GET /v1/services/{id}", s.getService)
+	mux.Handle("GET /v1/services", s.auth.Handler(http.HandlerFunc(s.listServices)))
+	mux.Handle("GET /v1/services/{id}", s.auth.Handler(http.HandlerFunc(s.getService)))
 	mux.HandleFunc("GET /v1/virtual-metrics", s.virtualMetrics)
 
-	mux.HandleFunc("GET /v1/incidents", s.listIncidents)
-	mux.HandleFunc("GET /v1/incidents/{id}", s.getIncident)
+	mux.Handle("GET /v1/incidents", s.auth.Handler(http.HandlerFunc(s.listIncidents)))
+	mux.Handle("GET /v1/incidents/{id}", s.auth.Handler(http.HandlerFunc(s.getIncident)))
 	mux.Handle("POST /v1/incidents", s.auth.Handler(http.HandlerFunc(s.createIncident)))
 	mux.Handle("POST /v1/incidents/{id}/ack", s.auth.Handler(http.HandlerFunc(s.ackIncident)))
 	mux.Handle("POST /v1/incidents/{id}/resolve", s.auth.Handler(http.HandlerFunc(s.resolveIncident)))
@@ -69,15 +69,15 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("POST /v1/demo/alerts", s.auth.Handler(http.HandlerFunc(s.demoAlert)))
 
 	mux.HandleFunc("POST /v1/integrations/{key}/events", s.ingestEvent)
-	mux.HandleFunc("GET /v1/training/scenarios", s.listScenarios)
+	mux.Handle("GET /v1/training/scenarios", s.auth.Handler(http.HandlerFunc(s.listScenarios)))
 	mux.HandleFunc("POST /v1/training/score", s.scoreTraining)
-	mux.HandleFunc("GET /v1/training/history", s.trainingHistory)
-	mux.HandleFunc("GET /v1/runbooks", s.listRunbooks)
+	mux.Handle("GET /v1/training/history", s.auth.Handler(http.HandlerFunc(s.trainingHistory)))
+	mux.Handle("GET /v1/runbooks", s.auth.Handler(http.HandlerFunc(s.listRunbooks)))
 	mux.Handle("POST /v1/runbooks", s.auth.Handler(http.HandlerFunc(s.upsertRunbook)))
-	mux.HandleFunc("GET /v1/runbooks/{id}", s.getRunbook)
+	mux.Handle("GET /v1/runbooks/{id}", s.auth.Handler(http.HandlerFunc(s.getRunbook)))
 	mux.Handle("PUT /v1/runbooks/{id}", s.auth.Handler(http.HandlerFunc(s.upsertRunbook)))
 	mux.Handle("DELETE /v1/runbooks/{id}", s.auth.Handler(http.HandlerFunc(s.deleteRunbook)))
-	mux.HandleFunc("GET /v1/oncall", s.oncall)
+	mux.Handle("GET /v1/oncall", s.auth.Handler(http.HandlerFunc(s.oncall)))
 	return s.withCORS(mux)
 }
 
