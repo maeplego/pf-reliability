@@ -1,4 +1,4 @@
--- Reliability Postgres. Incident rows are the current state; events is the timeline.
+-- Reliability Postgres. Incident rows are the current state; the timeline table is reliability_events.
 
 CREATE TABLE IF NOT EXISTS reliability_services (
   id TEXT PRIMARY KEY,

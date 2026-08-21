@@ -81,6 +81,11 @@ export async function fireDemoAlert() {
   return parse<Incident>(await fetch(`${apiBase}/v1/demo/alerts`, { method: "POST", headers: headers() }));
 }
 
+export async function virtualMetrics(after?: string): Promise<VirtualMetrics> {
+  const q = after ? `?after=${encodeURIComponent(after)}` : "";
+  return parse<VirtualMetrics>(await fetch(`${apiBase}/v1/virtual-metrics${q}`, { cache: "no-store" }));
+}
+
 export async function scoreTraining(actions: string[], scenario = "bad-deploy"): Promise<TrainingScore> {
   return parse<TrainingScore>(
     await fetch(`${apiBase}/v1/training/score`, {

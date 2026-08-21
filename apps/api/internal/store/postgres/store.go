@@ -63,11 +63,38 @@ func (s *Store) migrate(ctx context.Context) error {
 
 func splitSQL(raw string) []string {
 	var out []string
-	for _, part := range strings.Split(raw, ";") {
-		s := strings.TrimSpace(part)
-		if s == "" {
+	var b strings.Builder
+	inSingle := false
+	for _, line := range strings.Split(raw, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "--") {
 			continue
 		}
+		for i := 0; i < len(line); i++ {
+			c := line[i]
+			if c == '\'' {
+				b.WriteByte(c)
+				if inSingle && i+1 < len(line) && line[i+1] == '\'' {
+					b.WriteByte(line[i+1])
+					i++
+					continue
+				}
+				inSingle = !inSingle
+				continue
+			}
+			if c == ';' && !inSingle {
+				s := strings.TrimSpace(b.String())
+				b.Reset()
+				if s != "" {
+					out = append(out, s)
+				}
+				continue
+			}
+			b.WriteByte(c)
+		}
+		b.WriteByte('\n')
+	}
+	if s := strings.TrimSpace(b.String()); s != "" {
 		out = append(out, s)
 	}
 	return out
