@@ -1,4 +1,4 @@
-# pf-reliability
+﻿# pf-reliability
 
 学習用の信頼性デモです。インシデントの起票・Ack・Resolve、タイムライン、HMAC webhook（重複排除）、仮想メトリクス、bad-deploy 訓練の採点までです。扱うのは **仮想のメトリクスとインシデント** だけです。クラスタへの診断コマンドや自動 rollback はありません。**本番インシデント管理の置き換えではありません。**
 
@@ -37,3 +37,13 @@ go test ./...
 訓練では bad-deploy は rollback、noisy-neighbor は scale、dependency-timeout は escalate が正解です。ランブック CRUD、3 シナリオ、訓練履歴、架空オンコール一覧があります。Slack 通知はありません。
 
 設計の詳細は [portfolio-plan](https://github.com/maeplego/portfolio-plan) の `portfolio-plan/reliability-platform/docs/` です。
+
+## ライセンスと利用条件
+
+本リポジトリは **デモ・学習・社内評価用** です。現状品質に **保証はありません**。
+
+- 許可: クローン、ローカル実行、学習、非本番の評価
+- 別契約が必要: 本番運用、有償サービスへの組込み、再販・托管の提供
+
+詳細は [LICENSE](./LICENSE) と [licensing.md](https://github.com/maeplego/portfolio-plan/blob/master/portfolio-plan/licensing.md) を参照してください。
+
